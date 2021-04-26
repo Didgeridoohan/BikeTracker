@@ -7,7 +7,7 @@ I was looking for a tracker that would let me know if the bike is moving and tha
 So, I needed a microcontroller that I could hook an accelerometer and a GPS to, and that reliably could send me the data gathered from those sensors. A simple SMS seemed like the best way to transmit, and it’s unlikely to stop working in the near future.
 
 ## Hardware
-After some research I ended up with the following hardware:
+After some research, and trial and error, I ended up with the following hardware:
 * Arduino MKR GSM 1400 as the mainboard
 * GSM/GPRS 2dBi internal U.FL antenna
 * ADXL345 3-axis accelerometer
