@@ -74,7 +74,7 @@ To use the least amount of battery, the device will go into deep sleep mode if n
 If the device has been in a location sending mode, and once the device stops sending the location data, the period until it goes back into deep sleep mode is set to 20 minutes. This is so that you can have a longer window of opportunity to send SMS-commands (see below), for example to manually trigger a location ping.
 
 #### SMS-commands
-There are a number of commands that can be sent to the device. The prerequisite is that the device is on and that it isn’t in deep sleep mode.
+There are a number of commands that can be sent to the device. The prerequisite is that the device is on and that it isn’t in deep sleep mode (although once the device wakes up the command will most likely be recieved).
 
 To send a command, create an SMS that starts with your device password (see the setup section below), directly followed by the command. The password can contain any characters or numbers you’d like.
 
