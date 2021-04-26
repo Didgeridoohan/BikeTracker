@@ -35,7 +35,7 @@ To save a little bit of battery the power-LED (marked "ON" on the main board, as
 This connects easily through the provided I2C cable and the I2C port on both the main board and the GPS module. No soldering required. The connector uses digital pin 7, and this is used to wake up the GPS board when sleeping.
 
 ### ADXL345 Accelerometer
-The following pins are connected between the two boards.
+The following pins are connected between the main board and the accelerometer.
 MKR GSM 1400 | ADXL345
 ------------ | -------
 Pin 6 | INT1
