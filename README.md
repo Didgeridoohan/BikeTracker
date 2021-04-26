@@ -126,12 +126,14 @@ Check how long the device has been active without a reset.
 
 ## Setup
 When preparing the software for upload to the board, the arduino_secrets.h file needs to be set up with the following variables (download the file from GitHub for ease of setup, it needs to be in the same project directory as the main .ino file):  
-SECRET_PINNUMBER "*SIM-card pin number*"  
-SECRET_PHONENUMBER "*phone number you want to send SMS-messages to*"  
-SECRET_PASSWORD "*SMS commands password*"  
-SECRET_GPRS_APN "*your mobile provider’s APN address*"  
-SECRET_GPRS_LOGIN "*the APN login*"  
-SECRET_GPRS_PASSWORD "*the APN password*"  
+```
+#define SECRET_PINNUMBER "SIM-card pin number"
+#define SECRET_PHONENUMBER "phone number you want to send SMS-messages to"
+#define SECRET_PASSWORD "SMS commands password"
+#define SECRET_GPRS_APN "your mobile provider’s APN address"
+#define SECRET_GPRS_LOGIN "the APN login"
+#define SECRET_GPRS_PASSWORD "the APN password"
+```
 
 ## Mounting on the bike
 I’ve had several different ideas on how to mount the tracker on a bike. Commercial trackers can often be hidden in the handlebars or similar, but the MKR GSM 1400 module can be a bit too wide for that with its 25 millimeters. Other options could be in the seat-post hole or in a case mounted to the frame somewhere.
