@@ -157,6 +157,8 @@ Below you see the finished case that I ended up using, also mounted on the bike 
 And a view of the insides of the case.
 ![Internal wiring and electronics](/images/case_internal.jpg)
 
+The weatherproofing comes from sealing holes and seams with a whole lot of rubber glue and cutting out gaskets for the lid from a bicycle wheel inner tube.
+
 Another possible way to mount everything “on the frame” would be to mount every component separately underneath the saddle and then weatherproof with heat shrink and other plastic wrappings. I need to think about/pursue this option further, but the tracker should at least be easily accessible this way.
 
 ## Licence
