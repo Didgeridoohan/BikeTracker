@@ -23,7 +23,7 @@ While testing the hardware I noticed that the MKR GSM board wouldn’t charge th
 ## Wiring
 ![Wiring diagram](/images/wiring.png)
 ### MKR GMS 1400
-I couldn’t find the MKR GSM 1400 without the headers, so those had to be desoldered before anything else could be connected to the board. The headers just take up too much space for them to be kept on there.
+I couldn’t find the MKR GSM 1400 without the headers (don't think it's even available without), so those had to be desoldered before anything else could be connected to the board. The headers just take up too much space for them to be kept on there.
 
 Pull the plastic blocks off the pins with a pair of pliers and then desolder each pin individually. Unless it gets really messy there’s also no need to remove any of the old solder, and it might even be that the solder that is left on the board can be used for the wires later. It might be necessary to create a new hole for the wires though, but this can be achieved by pushing a toothpick through the solder while heating it up.
 
