@@ -5,7 +5,8 @@ There are actually plenty of bicycle trackers around, so why make your own? Well
 I was looking for a tracker that would let me know if the bike is moving and that will start tracking it through GPS if it’s stolen. I did not want it to work through bluetooth, because that requires proximity to the device and that enough users of the same tracker are around (never liked that concept). And I did not want to tie myself into using an app that likely will stop working if the company goes belly up. Most of the time, you’re also forced to use the SIM-card provided by the company that sells the device. Nah… I want to be in control of this thing.
 
 So, I needed a microcontroller that I could hook an accelerometer and a GPS to, and that reliably could send me the data gathered from those sensors. A simple SMS seemed like the best way to transmit, and it’s unlikely to stop working in the near future.
-Hardware
+
+## Hardware
 After some research I ended up with the following hardware:
 * Arduino MKR GSM 1400 as the mainboard
 * GSM/GPRS 2dBi internal U.FL antenna
