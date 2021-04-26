@@ -21,6 +21,7 @@ A note on the charger listed above:
 While testing the hardware I noticed that the MKR GSM board wouldn’t charge the Li-Po batteries I had, and after some further research I concluded that there was either something wrong with the board or that it simply wasn’t compatible with the batteries I had. Since it was functioning otherwise, and that I didn’t want to spend a lot of time investigating further I decided on using an external charging circuit instead and got the Sparkfun charger. If you make something similar and the MKR GSM board charges your battery, this external charger will of course not be necessary.
 
 ## Wiring
+![Wiring diagram](/images/wiring.png)
 ### MKR GMS 1400
 I couldn’t find the MKR GSM 1400 without the headers, so those had to be desoldered before anything else could be connected to the board. The headers just take up too much space for them to be kept on there.
 
@@ -32,6 +33,7 @@ To save a little bit of battery the power-LED has been desoldered.
 
 ### MKR GPS Shield
 This connects easily through the provided I2C cable and the I2C port on both the main board and the GPS module. No soldering required. The digital 7 pin is used as a GPS wakeup pin.
+![I2C connector](/images/i2c.jpg)
 
 ### ADXL345 Accelerometer
 MKR GSM 1400 | ADXL345
@@ -147,7 +149,15 @@ If hiding the tracker inside the frame isn’t an option, putting it on the fram
 
 I opted for a solution where I merged the box with the mounting holder for my bicycle lock. That way the box kind of looks like it is part of the mount, but it is still easily accessible. For my prototype I used a multipurpose plastic enclosure from Hammond Electronics (1591HBK) that I (heavily) modified to accommodate the lock mount and to also make it somewhat waterproof. It took a lot of cutting, grinding, gluing and swearing, but eventually I got it to work somewhat like I want it to. If I had access to a 3D-printer I would have designed a more streamlined case that doesn’t stick out like a sore thumb, but that’s for another time.
 
-Another possible way to mount everything “on the frame” would be to mount every component separately underneath the saddle and then weatherproof with heat shrink and other plastic wrappings. Easily accessible, at least.
+Below you see the finished case that I ended up using, also mounted on the bike and a comparison to an unmodified bike lock mount.
+![Finished case](/images/case.jpg)
+![Mounted case](/images/case_mounted.jpg)
+![Original lock mount for comparison](/images/case_compare.jpg)
+
+And a view of the insides of the case.
+![Internal wiring and electronics](/images/case_internal.jpg)
+
+Another possible way to mount everything “on the frame” would be to mount every component separately underneath the saddle and then weatherproof with heat shrink and other plastic wrappings. I need to think about/pursue this option further, but the tracker should at least be easily accessible this way.
 
 ## Licence
 MIT License
