@@ -36,6 +36,7 @@ This connects easily through the provided I2C cable and the I2C port on both the
 ![I2C connector](/images/i2c.jpg)
 
 ### ADXL345 Accelerometer
+The following pins are connected between the two boards.
 MKR GSM 1400 | ADXL345
 ------------ | -------
 Pin 6 | INT1
