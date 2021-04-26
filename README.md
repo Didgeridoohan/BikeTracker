@@ -29,7 +29,7 @@ Pull the plastic blocks off the pins with a pair of pliers and then desolder eac
 
 Pin 10 and the reset pin have been connected so that the board can be reset programmatically when needed.
 
-To save a little bit of battery the power-LED (marked "ON" on the main board, as seen in the diagram above) have been desoldered.
+To save a little bit of battery the power-LED (marked "ON" on the main board, as seen in the diagram above) has been desoldered.
 
 ### MKR GPS Shield
 This connects easily through the provided I2C cable and the I2C port on both the main board and the GPS module. No soldering required. The connector uses digital pin 7, and this is used to wake up the GPS board when sleeping.
