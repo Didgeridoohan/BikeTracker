@@ -156,7 +156,7 @@ Below you see the finished case that I ended up using, also mounted on the bike 
 ![Mounted case](/images/case_mounted.jpg)
 ![Original lock mount for comparison](/images/case_compare.jpg)
 
-And a view of the insides of the case.
+And a view of the insides of the case (the main board and the LiPo charger can just about be discerned behind the green GSM antenna).
 ![Internal wiring and electronics](/images/case_internal.jpg)
 
 The weatherproofing comes from sealing holes and seams with a whole lot of rubber glue and cutting out gaskets for the lid from a bicycle wheel inner tube.
