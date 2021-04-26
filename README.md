@@ -32,8 +32,7 @@ Pin 10 and the reset pin have been connected so that the board can be reset prog
 To save a little bit of battery the power-LED has been desoldered.
 
 ### MKR GPS Shield
-This connects easily through the provided I2C cable and the I2C port on both the main board and the GPS module. No soldering required. The digital 7 pin is used as a GPS wakeup pin.
-![I2C connector](/images/i2c.jpg)
+This connects easily through the provided I2C cable and the I2C port on both the main board and the GPS module. No soldering required. The connector uses digital 7 pin, and this is used as a GPS wakeup pin.
 
 ### ADXL345 Accelerometer
 The following pins are connected between the two boards.
