@@ -151,12 +151,16 @@ If hiding the tracker inside the frame isn’t an option, putting it on the fram
 
 I opted for a solution where I merged the box with the mounting holder for my bicycle lock. That way the box kind of looks like it is part of the mount, but it is still easily accessible. For my prototype I used a multipurpose plastic enclosure from Hammond Electronics (1591HBK) that I (heavily) modified to accommodate the lock mount and to also make it somewhat waterproof. It took a lot of cutting, grinding, gluing and swearing, but eventually I got it to work like I want it to (although it's not pretty). If I had access to a 3D-printer I would have designed a more streamlined case that doesn’t stick out like a sore thumb, but that’s for another time.
 
-Below you see the finished case that I ended up using, also mounted on the bike and a comparison to an unmodified bike lock mount.
+Below you see the finished case that I ended up using.
 ![Finished case](/images/case.jpg)
+
+Here it is mounted on the bike.
 ![Mounted case](/images/case_mounted.jpg)
+
+And a comparison with an unmodified bike lock mount.
 ![Original lock mount for comparison](/images/case_compare.jpg)
 
-And a view of the insides of the case (the main board and the LiPo charger can just about be discerned behind the green GSM antenna).
+Lastly, a view of the insides of the case (the main board and the LiPo charger can just about be discerned behind the green GSM antenna).
 ![Internal wiring and electronics](/images/case_internal.jpg)
 
 The weatherproofing comes from sealing holes and seams with a whole lot of rubber glue and cutting out gaskets for the lid from a bicycle wheel inner tube.
