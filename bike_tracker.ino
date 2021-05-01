@@ -1,5 +1,5 @@
 /*
-   Bike Tracker v1.0
+   Bike Tracker v1.1
    Copyright (c) 2021 Johan Oscarsson
    Released under the MIT licence
 
@@ -34,9 +34,9 @@ SFE_UBLOX_GNSS myGNSS;
  *   Variables   *
  *****************/
 
-const int int1Pin = 6;      // Accelerometer interrupt pin 1
-const int int2Pin = 8;      // Accelerometer interrupt pin 2
-const int OUTPUT_PIN = 10;  // Reset pin
+const int int1Pin = 6; // Accelerometer interrupt pin 1
+const int int2Pin = 8; // Accelerometer interrupt pin 2
+const int OUTPUT_PIN = 10; // Reset pin
 
 byte WatchDogCause = Watchdog.resetCause();
 unsigned int WatchDogTimer = 30000;
@@ -47,7 +47,7 @@ char *cmpsPoints[9] = {"North", "North-east", "East", "South-east", "South", "So
 volatile bool in_activity = false;
 bool accActive = true, mvCheck = false, sleeping = false, toCheck = false, stopAll = false, StartStopMode = true; // Markers for activity, movement, device sleeping, GPS time-out, idle mode
 byte wakeInt = 5, sleepTh, sleepTm, sleepTs; // Interval in minutes until next deep sleep after a wakeup; hour, minute and seconds for the sleep timer
-unsigned long sleepDur;
+unsigned long sleepT, sleepDur;
 
 /* GPS data */
 float latitude, longitude, course, speed;
@@ -66,8 +66,8 @@ unsigned int moveTimer = 15000;  // Number of ms for activity to have been regie
 byte stillTimer = 5; // Number of seconds for inactivity to be registered
 byte stopTime = 120; // Number of minutes that idle mode should be active before turning off
 unsigned long upSeconds, upMinutes, upHours, upDays; // Up-time variables
-String compYear, compMonth, compDay, compHour, compMinute, compSecond;
-String timeYear, timeMonth, timeDay, timeHour, timeMinute, timeSecond;
+String compYear, compMonth, compDay, compHour, compMinute, compSecond; // Compilation date/time
+String timeYear, timeMonth, timeDay, timeHour, timeMinute, timeSecond; // Device/GPS date/time
 String timeString;
 char *abbr;
 int SMSwakeup = 99;
@@ -80,8 +80,8 @@ char senderNumber[20];
 String SMSrec, SMStxt;
 int c;
 
-float currBattery;                       // Current battery level
-int sensorValue;                         // Battery sensor value
+float currBattery; // Current battery level
+int sensorValue; // Battery sensor value
 bool bWarning = false, bCharged = false; // Battery warning and charged checks
 
 /*****************
@@ -96,7 +96,7 @@ void WakeUp() { // Exit deep sleep interrupt dummy function
   ;
 }
 
-void GPSalarmMatch() { // GPS data collecting trigger function
+void GPSalarmMatch() { // GPS data collecting interrupt function
   GPSsend = true;
 }
 
@@ -167,15 +167,19 @@ void GPSwakeUp() {
 }
 
 void GPSstart() { // Start collecting GPS data
+  timeCreate(true);
   GPSwake = true;
   GPSalarmMatch();
+  SMStxt += "Start sending GPS data.\n" + timeString;
+  sendSMS();
 }
 
 void GPSstop() { // Stop collecting GPS data
+  timeCreate(true);
   GPSwake = false;
   rtc.disableAlarm();
   rtc.detachInterrupt();
-  SMStxt += "Stopping GPS data.";
+  SMStxt += "Stop sending GPS data.\n" + timeString;
   sendSMS();
   if (!GPSloc) {
     sleepTime(20); // Make sure that the device is awake for 20 minutes after GPS stops sending
@@ -259,9 +263,13 @@ void SMScommand() { // Execute the command recieved through SMS
       sleepTime(0);
       SMSrec.remove(0, 9);
       SMStxt += "\n\nDeep sleep mode command recieved. Sleeping";
-      if (SMSrec.length() >0 && SMSrec.toInt() != 0) {
+      if (SMSrec.length() >0 && SMSrec.toInt() != 0 && SMSrec.toInt() < 25) {
         SMSwakeup = SMSrec.toInt();
-        SMStxt += " until " + String(SMSwakeup) + " o'clock.";
+        if (SMSwakeup == 24) {
+          SMSwakeup = 0;
+          SMStxt += " until midnight.";
+        }
+          SMStxt += " until " + String(SMSwakeup) + ":00 hours.";
       }
       else {
         SMStxt += "...";
@@ -272,6 +280,10 @@ void SMScommand() { // Execute the command recieved through SMS
       if (SMSrec.length() > 0 && SMSrec.toInt() != 0) {
         sleepTime(SMSrec.toInt());
         SMStxt += "\n\nSet sleep timer command recieved. Setting sleep timer to " + SMSrec + " minutes.";
+      }
+      else if (SMSrec.length() == 0) {
+        sleepTime(0);
+        SMStxt += "\n\nSet sleep timer command recieved. Sleeping now.";
       }
       else {
         SMStxt += "\n\nSleep timer command needs a time component. Try again.";
@@ -347,6 +359,7 @@ void compileTime() { // Convert the compile date and time strings to separate en
   tmpIn.reserve(12);
   delim.reserve(2);
   tmpIn = __DATE__;
+  tmpIn.replace("  ", " ");
   delim = " ";
   for (i = 0; i < 3; i++) {
     compTmp = tmpIn.substring(j, tmpIn.indexOf(delim, j));
@@ -597,6 +610,7 @@ void loop() {
   if (!stopAll) {
     if (rtc.getHours() + DSTcheck() >= sleepTh && rtc.getMinutes() >= sleepTm && rtc.getSeconds() >= sleepTs && !mvCheck && !GPSwake && !sleeping) { // Deep sleep check
       sleeping = true;
+      mvCheck = false;
       t = gsmAccess.getTime() + (DSTcheck() * 3600);
       
       /* Note that the RTCZero library doesn't roll over to a new date until 02:00 in the morning. https://github.com/arduino-libraries/RTCZero/issues/39
@@ -605,11 +619,11 @@ void loop() {
       
       if (SMSwakeup != 99) { // A custom wake-up time is set through SMS-command
         if (rtc.getHours() > 23 && SMSwakeup < 2) {
-          if (rtc.getHours() == 24 && SMSwakeup == 0 || rtc.getHours() == 25 && SMSwakeup == 1) {
-            sleepHour = 24;
+          if (rtc.getHours() == 24 && SMSwakeup == 1) {
+            sleepHour = 25;
           }
           else {
-            sleepHour = SMSwakeup;
+            sleepHour = (SMSwakeup + 48);
           }
         }
         else if (rtc.getHours() >= SMSwakeup) {
@@ -618,7 +632,6 @@ void loop() {
         else if (rtc.getHours() < SMSwakeup) {
           sleepHour = SMSwakeup;
         }
-        SMSwakeup = 99; // Reset timer
       }
       else if (hour(t) >= 20 || hour(t) < 2) { // 8:00 the next day
         sleepHour = (8 + 24);
@@ -629,15 +642,22 @@ void loop() {
       else if (hour(t) >= 8 && hour(t) < 20) { // 20:00
         sleepHour = 20;
       }
+
+      sleepT = tmConvert_t(2000 + rtc.getYear(), rtc.getMonth(), rtc.getDay(), 0, 00, 00) + (sleepHour * 3600); // Use todays date, at midnight, as a base for the calcualtions
+      sleepDur = sleepT - t;
       
-      sleepDur = (tmConvert_t(2000 + rtc.getYear(), rtc.getMonth(), rtc.getDay(), 0, 00, 00) + (sleepHour * 3600)) - t; // Use todays date, at midnight, as a base for the calcualtions
-      
-      if (sleepDur <= 1800) { // If the sleep timer is close (within 30 minutes) let the device sleep until the next wakeup event
+      if (sleepDur <= 1800 && SMSwakeup == 99) { // If the sleep timer is close (within 30 minutes) let the device sleep until the next wakeup event (unless set through SMS command)
         sleepDur += 12 * 3600;
+        sleepT += 12 * 3600;
       }
+      SMSwakeup = 99; // Reset timer
       
       timeCreate(true);
-      SMStxt += "Going to sleep.\nBike Tracker battery level: " + String(currBattery * (4.2 / 1023.0)) + "V\n" + timeString;
+      SMStxt += "Going to sleep until " + String(hour(sleepT)) + ":00 hours";
+      if (rtc.getHours() < 24 && hour(sleepT) < rtc.getHours()) {
+        SMStxt += " tomorrow";
+      }
+      SMStxt += ".\n\nBike Tracker battery level: " + String(currBattery * (4.2 / 1023.0)) + "V\n" + timeString;
       sendSMS();
       myGNSS.powerOff(sleepDur * 1000 + 600000); // Add 10 minutes to make sure the GPS doesn't wake up before it is time to exit deep sleep
       delay(500);
@@ -653,12 +673,18 @@ void loop() {
       sleeping = false;
       bWarning = false;
       timeCreate(true);
+      if (in_activity) {
+        SMStxt += "Waking up.";
+      }
+      else {
+        SMStxt += "Scheduled wake-up.";
+      }
       if (currBattery >= 850) {
-        SMStxt += "Waking up.\nBike Tracker battery level: " + String(currBattery * (4.2 / 1023.0)) + "V\n" + timeString;
+        SMStxt += "\n\nBike Tracker battery level: " + String(currBattery * (4.2 / 1023.0)) + "V\n" + timeString;
         sendSMS();
       }
       else {
-        SMStxt += "Waking up.\n" + timeString;
+        SMStxt += "\n" + timeString;
         sendSMS();
       }
       GPSwakeUp();
@@ -692,7 +718,7 @@ void loop() {
     StartStop(true);
   }
 
-  if (!stopAll) {
+  if (!stopAll && !sleeping) {
     if (in_activity == true) { // Accelerometer activity
       byte intSource = myAcc.readAndClearInterrupts();
       if (myAcc.checkInterrupt(intSource, ADXL345_ACTIVITY)) {

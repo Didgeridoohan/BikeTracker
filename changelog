@@ -1,0 +1,15 @@
+Bike Tracker Changelog
+
+Copyright (c) 2021 Johan Oscarsson
+Released under the MIT licence
+
+Documentation and code: https://www.github.com/Didgeridoohan/BikeTracker
+
+v1.1 - 2021-05-01
+- Fixed an issue with the GPRS date/time comparison against the compile date/time. Apparently the Arduino compile date variable (__DATE__) adds an extra space whenever a date is a singel digit number (to keep the string length consistent, I assume). That breaks stuff if you don't compensate for it...
+- Fixed "Deep Sleep" SMS command so that it's possible to set a custom wakeup time without issue.
+- Added additional SMS-alerts to help with automating notification sounds on your phone (using Tasker or similar).
+- Improved some SMS messages to be more informative.
+
+v1.0 - 2021-04-27
+- Initial release

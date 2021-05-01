@@ -52,7 +52,7 @@ The positive wire goes through the micro switch to the positive lead on the JST 
 The code for this project is found on Github:
 https://www.github.com/Didgeridoohan/BikeTracker
 
-I’m not actually a programmer (and this is my first ever Arduino project), I just like to dabble. As a result, the code might not be very pretty, effective or “correct”, but it works. If you’ve got the time and skill, please feel free to contribute.
+I’m not actually a programmer (and this is my first ever Arduino project), I just like to dabble. As a result, the code might not be very pretty, effective or “correct”, but it works (from what I've seen at least). If you’ve got the time and skill, please feel free to contribute.
 
 ## Features
 ### Basics
@@ -109,11 +109,11 @@ Stop transmitting the device location.
 **Deep sleep**  
 *Command: deepsleep  
 Alternative command: deepsleep12*  
-Manually enter deep sleep mode. If the command is followed by a number between 0 and 23 (24-hour clock, 0 is midnight), the wake-up event will occur the next time that hour passes. Once it has, or the device wakes up from movement, the default wake-up times will be used.
+Manually enter deep sleep mode. If the command is followed by a number between 1 and 24 (24-hour clock, 24 is midnight), the wake-up event will occur the next time that hour passes. Once it has, or the device wakes up from movement, the default wake-up times will be used.
 
 **Set Sleep Timer**  
 *Command setsleep5*  
-Set the time in minutes until the device should enter deep sleep. The number after “setsleep” is the number of minutes you want to set the timer to.
+Set the time in minutes until the device should enter deep sleep. The number after “setsleep” is the number of minutes you want to set the timer to. If you want the device to sleep immediately, do not set a time at all (so: *setsleep*).
 
 **Battery Check**  
 *Command: battery*  
@@ -166,6 +166,11 @@ Lastly, a view of the insides of the case (the main board and the LiPo charger c
 The weatherproofing comes from sealing holes and seams with a whole lot of rubber glue and cutting out gaskets for the lid from a bicycle wheel inner tube.
 
 Another possible way to mount everything “on the frame” would be to mount every component separately underneath the saddle and then weatherproof with heat shrink and other plastic wrappings. I need to think about/pursue this option further, but the tracker should at least be easily accessible this way.
+
+## Customising alerts
+The SMS alerts are constructed so that you can use an automation tool (like [Tasker](https://play.google.com/store/apps/details?id=net.dinglisch.android.taskerm) or similar) to filter out and create notification sounds for the SMS alerts of your choice. There is a simple [Tasker](https://play.google.com/store/apps/details?id=net.dinglisch.android.taskerm) profile [here](Bike_Tracker_Movement_Alert.prf.xml) that you can use as a base. Sorry iOS people, I'm not quite sure what you could use for the same effect. Maybe ITTT or Workflow?
+
+An example on how the SMS alerts are constructed is that when movement interrupts a deep sleep cycle the SMS will start with "Waking up", but if the wake-up event is caused by the RTC the message will start with "Scheduled wake-up". This is because you might not want to get a notification sound for a scheduled wake-up, but for a movement triggered wake-up you do.
 
 ## Licence
 MIT License
