@@ -112,8 +112,9 @@ Alternative command: deepsleep12*
 Manually enter deep sleep mode. If the command is followed by a number between 1 and 24 (24-hour clock, 24 is midnight), the wake-up event will occur the next time that hour passes. Once it has, or the device wakes up from movement, the default wake-up times will be used.
 
 **Set Sleep Timer**  
-*Command setsleep5*  
-Set the time in minutes until the device should enter deep sleep. The number after “setsleep” is the number of minutes you want to set the timer to. If you want the device to sleep immediately, do not set a time at all (so: *setsleep*).
+*Command setsleep5  
+Alternative command: setsleep*  
+Set the time in minutes until the device should enter deep sleep. The number after “setsleep” is the number of minutes you want to set the timer to. If you want the device to sleep immediately, do not set a time at all (so: *setsleep*). But then you might as well just use the *deepsleep* command...
 
 **Battery Check**  
 *Command: battery*  
