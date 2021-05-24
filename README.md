@@ -1,4 +1,4 @@
-# Bike Tracker
+# Bike Tracker v1.2
 ## Background
 There are actually plenty of bicycle trackers around, so why make your own? Well, so that it works the way you want it… And it’s fun!
 
@@ -57,21 +57,35 @@ I’m not actually a programmer (and this is my first ever Arduino project), I j
 ## Features
 ### Basics
 The basic features include (a more detailed description follow):
+* Up to 10 days battery time.
 * Movement detection.
 * GPS and GPRS location.
 * Control the device through SMS-commands.
 
 ### Details
+#### Battery
+With regular use the battery should last up to 6 days. This is if the device is on most of the time, but in deep sleep mode. With more activity, the battery will of course last a shorter time.
+
+According to the [https://content.arduino.cc/assets/mkr-microchip_samd21_family_full_datasheet-ds40001882d.pdf](SAMD21 data sheet) there's no need to configure unused pins to optimise power consumption (floating pins). Therefore, I haven't bothered with that...
+
+To charge the device I've pulled a small USB extension cable through the case that is accessible even with the device mounted on the bike. A power bank is a handy way of charging the tracker without having to bring the bike to somewhere where you have an outlet (if none is easily accessible where you keep the bike, that is).
+
+#### Deep sleep
+To use the least amount of battery, the device will go into deep sleep mode if no movement is registered and no location transmission is active. By default this happens after 5 minutes. In deep sleep mode only movement or the RTC can wake up the device, everything else is shut off or in low power mode. The device will wake up at set times (by default 8:00 and 20:00 o’clock), to transmit the battery level and possibly receive SMS commands (more on that below). If nothing happens within 5 minutes the device goes back to deep sleep.
+
+If the device has been in a location sending mode, and once the device stops sending the location data, the period until it goes back into deep sleep mode is set to 20 minutes. This is so that you can have a longer window of opportunity to send SMS-commands (see below), for example manually triggering a location ping.
+
+#### Idle mode
+Idle mode is very similar to the deep sleep mode, but the device doesn't actually go to sleep. The only differenci is in which components are deactivated. The GPS module is shut off but the main board and modem are still active, so SMS messages can be recieved. The modem is not in low power mode though, since this causes a lot of instability on a running system (from what I've seen during tests). Battery life will of course be much shorter compared to when using deep sleep (battery should last up to 4 days).
+
+Idle mode can be activated with an SMS command (see below).
+
 #### Movement detection
 If the tracker moves, you will be notified through an SMS. If things then stay quiet for a certain amount of time (default 30 seconds), another SMS letting you know that everything is quiet again is sent out.
 
 #### Location
 When things don’t quiet down, but movement is continuously registered over a period of 1.5 minutes the GPS will activate and start transmitting. If no GPS lock can be acquired within one minute the device will instead try to get the location from the mobile network, via GPRS (much less accurate, but can get an approximate location when the device is indoors or otherwise cannot get a GPS fix).
-The location of the device will be transmitted every 2 minutes for a minimum of 5 times (not including the initial location ping). If there’s still movement after 5 successful location pings the device will continue to send the location 5 more times. But if no movement is registered once the 5th location message goes out the device will stop transmitting its location.
-
-#### Deep sleep
-To use the least amount of battery, the device will go into deep sleep mode if no movement is registered and no location transmission is active. By default this happens after 5 minutes. In deep sleep mode only movement can wake up the device, everything else is shut off. The device will wake up at set times (by default 8:00 and 20:00 o’clock), to transmit the battery level and possibly receive SMS commands (more on that below). If nothing happens within 5 minutes the device goes back to deep sleep.
-If the device has been in a location sending mode, and once the device stops sending the location data, the period until it goes back into deep sleep mode is set to 20 minutes. This is so that you can have a longer window of opportunity to send SMS-commands (see below), for example to manually trigger a location ping.
+The location of the device will be transmitted every 2 minutes for a minimum of 5 times (not including the initial location ping). If there’s still movement after 5 successful location pings the device will continue to send the location 5 more times. But if no movement is registered once the 5th location message goes out the device will stop transmitting its location. If the continious GPS mode has been enabled the location will keep transmitting until the *GPS stop* command is recieved, even if the device is no longer moving.
 
 #### SMS-commands
 There are a number of commands that can be sent to the device. The prerequisite is that the device is on and that it isn’t in deep sleep mode (although once the device wakes up the command will most likely be recieved).
@@ -80,15 +94,7 @@ To send a command, create an SMS that starts with your device password (see the 
 
 **Example**: thisismypasswordgpsloc
 
-In this example, "*thisismypassword*" is the used password, and this command would trigger a single location ping.
-
-**Start-up**  
-*Command: startup*  
-Use this command to start the device up again after having put it in idle mode with the Idle command.
-
-**Idle**  
-*Command: idle*  
-Put the device in an idle mode where the device is still on but nothing runs except the GSM module. Does not save as much battery as the automatic deep sleep mode, but it can instead still receive SMS-commands. The device will automatically exit idle mode after a set time (default 2 hours).
+In this example, "*thisismypassword*" is the used password, and the used command would trigger a single location ping.
 
 **Restart**  
 *Command: restart*  
@@ -99,8 +105,17 @@ Reset the device, as if you had toggled  the power button off and on.
 Trigger a single location ping.
 
 **GPS Start**  
-*Command: gps*  
-Start a location transmitting cycle.
+*Command: gps  
+Alternative command: gps5*  
+Start a location transmitting cycle. If the command is followed by a number (1 or greater), the time between sending GPS locations will be set to this amount of minutes.
+
+**Continious GPS**  
+*Command: gpscont*  
+Do not stop sending the GPS location until the *GPS stop* command is recieved.
+
+**GPS Timer**  
+*Command: gpstimer5*  
+Sets the time (in minutes) between sending GPS locations to the number that the command ends with (1 or greater). This command can be sent even when GPS is not yet active and the set timer will be used the next time GPS locations start sending.
 
 **GPS Stop**  
 *Command: gpsstop*  
@@ -112,9 +127,17 @@ Alternative command: deepsleep12*
 Manually enter deep sleep mode. If the command is followed by a number between 1 and 24 (24-hour clock, 24 is midnight), the wake-up event will occur the next time that hour passes. Once it has, or the device wakes up from movement, the default wake-up times will be used.
 
 **Set Sleep Timer**  
-*Command setsleep5  
-Alternative command: setsleep*  
-Set the time in minutes until the device should enter deep sleep. The number after “setsleep” is the number of minutes you want to set the timer to. If you want the device to sleep immediately, do not set a time at all (so: *setsleep*). But then you might as well just use the *deepsleep* command...
+*Command setsleep5*  
+Set the time in minutes until the device should enter deep sleep. The number after *setsleep* is the number of minutes you want to set the timer to (1 or greater).
+
+**Idle**  
+*Command: idle  
+Alternative command: idle12*  
+Put the device in an idle mode where the device is still on but nothing runs except the GSM module (although at low power). Does not save as much battery as the default deep sleep mode, but it can instead still receive SMS-commands. If the command is followed by a number between 1 and 24 (24-hour clock, 24 is midnight), the wake-up event will occur the next time that hour passes. Once it has, or the device wakes up from movement, the default wake-up times will be used.
+
+**Stop idle mode**  
+*Command: stopidle*  
+Use this command to exit *idle* mode and use the default *deep sleep* instead.
 
 **Battery Check**  
 *Command: battery*  
@@ -123,6 +146,14 @@ Check the device’s battery.
 **Uptime**  
 *Command: uptime*  
 Check how long the device has been active without a reset.
+
+**Shut-down**  
+*Comand: shutdown*  
+Set the device in idle mode without movement interrupts waking up the device. The device will automatically wake up after 2 hours.
+
+**Startup**  
+*Command: startup*  
+Wake the device up after having been in a shut-down state.
 
 ## Setup
 When preparing the software for upload to the board, the arduino_secrets.h file needs to be set up with the following variables (download the file from GitHub for ease of setup, it needs to be in the same project directory as the main .ino file):  

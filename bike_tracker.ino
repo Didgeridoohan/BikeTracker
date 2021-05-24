@@ -1,5 +1,5 @@
 /*
-   Bike Tracker v1.1
+   Bike Tracker v1.2
    Copyright (c) 2021 Johan Oscarsson
    Released under the MIT licence
 
@@ -45,7 +45,7 @@ char *abbrvMonth[13] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", 
 char *cmpsPoints[9] = {"North", "North-east", "East", "South-east", "South", "South-west", "West", "North-west"};
 
 volatile bool in_activity = false;
-bool accActive = true, mvCheck = false, sleeping = false, toCheck = false, stopAll = false, StartStopMode = true; // Markers for activity, movement, device sleeping, GPS time-out, idle mode
+bool accActive = true, mvCheck = false, sleeping = false, toCheck = false, idleMode = false, stopAll = false, shutDown = false; // Markers for activity, movement, device sleeping, GPS time-out, idle mode
 byte wakeInt = 5, sleepTh, sleepTm, sleepTs; // Interval in minutes until next deep sleep after a wakeup; hour, minute and seconds for the sleep timer
 unsigned long sleepT, sleepDur;
 
@@ -54,17 +54,16 @@ float latitude, longitude, course, speed;
 byte satellites;
 long accuracy;
 volatile bool GPSsend; // Marker for if GPS data collection should start
-bool GPSwake = false, GPSloc = false; // Markers for if GPS data collection and GPS location
+bool GPSwake = false, GPSloc = false, GPScont = false; // Markers for GPS data collection and GPS location
 byte GPSwCount = 0; // Counter for active rounds of GPS data collection
 int dirNum;
 
 /* RTC and timing */
 byte d, i, j, m, w, y, item; // Counters
-byte alarmH, alarmM, alarmS; // Alarm hours, mintes and seconds
+byte alarmH, alarmM, alarmS, GPStimer = 2; // Alarm hours, minutes, seconds and time between alarms
 unsigned long t, gpsMillis = 0, gpsSendMillis = 0, initMoveMillis = 0, moveMillis = 0, stillMillis = 0, chargedMillis, startTime, startStopMillis = 0; // Timing
 unsigned int moveTimer = 15000;  // Number of ms for activity to have been regiestered until an SMS is sent
 byte stillTimer = 5; // Number of seconds for inactivity to be registered
-byte stopTime = 120; // Number of minutes that idle mode should be active before turning off
 unsigned long upSeconds, upMinutes, upHours, upDays; // Up-time variables
 String compYear, compMonth, compDay, compHour, compMinute, compSecond; // Compilation date/time
 String timeYear, timeMonth, timeDay, timeHour, timeMinute, timeSecond; // Device/GPS date/time
@@ -89,7 +88,9 @@ bool bWarning = false, bCharged = false; // Battery warning and charged checks
  *****************/
 
 void in_activityISR() { // Activity interrupt function
-  in_activity = true;
+  if (!shutDown) {
+    in_activity = true;
+  }
 }
 
 void WakeUp() { // Exit deep sleep interrupt dummy function
@@ -114,7 +115,7 @@ void sleepTime(int addT) { // Set time for deep sleep
 }
 
 void GPSrounds(bool chkCount) { // Perform checks every round of collecting GPS data
-  if (GPSwCount > 4) { // Reset the count of rounds to send GPS data
+  if (GPSwCount > 4 && GPScont == false) { // Reset the count of rounds to send GPS data, unless continious GPS mode is enabled
     GPSwCount = 0;
     if (!accActive && !mvCheck || GPSloc) { // Stop sending GPS data if everything is quiet or a single GPS location has been requested
       GPSstop();
@@ -122,7 +123,7 @@ void GPSrounds(bool chkCount) { // Perform checks every round of collecting GPS 
   }
   if (GPSwake && !GPSloc) { // Set alarm for next collecting of GPS data
     alarmH = rtc.getHours() + DSTcheck();
-    alarmM = rtc.getMinutes() + 2;
+    alarmM = rtc.getMinutes() + GPStimer;
     alarmS = rtc.getSeconds();
     if (alarmM > 59) {
       alarmH += 1;
@@ -177,6 +178,8 @@ void GPSstart() { // Start collecting GPS data
 void GPSstop() { // Stop collecting GPS data
   timeCreate(true);
   GPSwake = false;
+  GPScont = false;
+  GPStimer = 2;
   rtc.disableAlarm();
   rtc.detachInterrupt();
   SMStxt += "Stop sending GPS data.\n" + timeString;
@@ -193,7 +196,7 @@ void GPSstop() { // Stop collecting GPS data
 void SMScommand() { // Execute the command recieved through SMS
   timeCreate(true);
   if (SMSrec.length() != 0) {
-    if (SMSrec == "gpsloc") {
+    if (SMSrec == "gpsloc" && !shutDown) {
       if (!stopAll) {
         SMStxt += "\n\nGPS location command received.";
         GPSloc = true;
@@ -206,16 +209,11 @@ void SMScommand() { // Execute the command recieved through SMS
         SMStxt += "\n\nDevice in idle mode. Can't activate GPS.";
       }
     }
-    else if (SMSrec == "gps") {
-      if (!stopAll) {
-        SMStxt += "\n\nGPS start command received.";
-        GPSstart();
-      }
-      else {
-        SMStxt += "\n\nDevice in idle mode. Can't activate GPS.";
-      }
+    else if (SMSrec == "gpscont" && !shutDown) {
+      SMStxt += "Continous GPS transmission command received.";
+      GPScont = true;
     }
-    else if (SMSrec == "gpsstop") {
+    else if (SMSrec == "gpsstop" && !shutDown) {
       if (!stopAll) {
         SMStxt += "\n\nGPS stop command received.";
         gpsMillis = 0;
@@ -225,45 +223,85 @@ void SMScommand() { // Execute the command recieved through SMS
         SMStxt += "\n\nDevice in idle mode. GPS already stopped.";
       }
     }
-    else if (SMSrec == "battery") {
+    else if (SMSrec.startsWith("gpstimer") && !shutDown) {
+      SMSrec.remove(0,8);
+      if (!stopAll) {
+        SMStxt += "\n\nGPS timer command received.";
+        if (SMSrec.length() > 0 && SMSrec.toInt() != 0 && SMSrec.toInt() < 255) {
+          GPStimer = SMSrec.toInt();
+          SMStxt += "\nSetting GPS location sending timer to " + SMSrec + " minutes.";
+        }
+        else {
+          SMStxt += "\nThe timer command needs a time component. Try again.";
+        }
+      }
+      else {
+        SMStxt += "\n\nDevice in idle mode. GPS isn't active.";
+      }
+    }
+    else if (SMSrec.startsWith("gps") && !shutDown) {
+      SMSrec.remove(0,3);
+      if (!stopAll) {
+        SMStxt += "\n\nGPS start command received.";
+        if (SMSrec.length() > 0 && SMSrec.toInt() != 0 && SMSrec.toInt() < 255) {
+          GPStimer = SMSrec.toInt();
+          SMStxt += "\n\nSetting GPS location sending timer to " + SMSrec + " minutes.";
+        }
+        GPSstart();
+      }
+      else {
+        SMStxt += "\n\nDevice in idle mode. Can't activate GPS.";
+      }
+    }
+    else if (SMSrec == "battery" && !shutDown) {
       SMStxt += "\n\nBattery check command received.\n" + String(readBattery(true)) + "V";
     }
-    else if (SMSrec == "uptime") {
+    else if (SMSrec == "uptime" && !shutDown) {
       upSeconds = gsmAccess.getTime() - startTime; // Calculate time since program initation, in seconds
       upMinutes = upSeconds / 60;
       upHours = upMinutes / 60;
       upDays = upHours / 24;
       SMStxt += "\n\nUptime command received.\nThe device has been active for " + String(int(upDays)) + " days, " + String(int(upHours % 24)) + " hours, " + String(int(upMinutes % 60)) + " minutes and " + String(int(upSeconds % 60)) + " seconds.";
     }
-    else if (SMSrec == "idle") {
-      if (StartStopMode) {
-        StartStopMode = false;
-        SMStxt += "\n\nIdle mode command received.\nPutting device in idle mode.";
+    else if (SMSrec.startsWith("idle") && !shutDown) {
+      if (!idleMode) {
+        sleepTime(0);
+        SMSrec.remove(0, 4);
+        idleMode = true;
+        SMStxt += "\n\nIdle mode command received.\nPutting device in idle mode";
+        if (SMSrec.length() > 0 && SMSrec.toInt() != 0 && SMSrec.toInt() < 25) {
+          SMSwakeup = SMSrec.toInt();
+          if (SMSwakeup == 24) {
+            SMSwakeup = 0;
+            SMStxt += " until midnight.";
+          }
+            SMStxt += " until " + String(SMSwakeup) + ":00 hours.";
+        }
+        SMStxt += ".";
       }
       else {
         SMSrec == "";
         SMStxt += "\n\nDevice is already in idle mode...\nStop wasting battery!";
       }
     }
-    else if (SMSrec == "startup") {
-      if (!StartStopMode) {
-        StartStopMode = true;
-        SMStxt += "\n\nStart-up command received.\nResetting device.";
+    else if (SMSrec == "stopidle" && !shutDown) {
+      if (idleMode) {
+        idleMode = false;
+        SMStxt += "\n\nStoppping idle mode.";
       }
       else {
         SMSrec == "";
-        SMStxt += "\n\nDevice is already up and running...";
+        SMStxt += "\n\nDevice is already using the default sleeping mode...";
       }
     }
-    else if (SMSrec == "restart") {
-      StartStopMode = true; // Use the StartStop function to restart the device.
+    else if (SMSrec == "restart" && !shutDown) {
       SMStxt += "\n\nRestart command received.\nRestarting...";
     }
-    else if (SMSrec.startsWith("deepsleep")) {
+    else if (SMSrec.startsWith("deepsleep") && !shutDown) {
       sleepTime(0);
       SMSrec.remove(0, 9);
       SMStxt += "\n\nDeep sleep mode command recieved. Sleeping";
-      if (SMSrec.length() >0 && SMSrec.toInt() != 0 && SMSrec.toInt() < 25) {
+      if (SMSrec.length() > 0 && SMSrec.toInt() != 0 && SMSrec.toInt() < 25) {
         SMSwakeup = SMSrec.toInt();
         if (SMSwakeup == 24) {
           SMSwakeup = 0;
@@ -275,27 +313,35 @@ void SMScommand() { // Execute the command recieved through SMS
         SMStxt += "...";
       }
     }
-    else if (SMSrec.startsWith("setsleep")) {
+    else if (SMSrec.startsWith("setsleep") && !shutDown) {
       SMSrec.remove(0, 8);
       if (SMSrec.length() > 0 && SMSrec.toInt() != 0) {
         sleepTime(SMSrec.toInt());
         SMStxt += "\n\nSet sleep timer command recieved. Setting sleep timer to " + SMSrec + " minutes.";
       }
-      else if (SMSrec.length() == 0) {
-        sleepTime(0);
-        SMStxt += "\n\nSet sleep timer command recieved. Sleeping now.";
-      }
       else {
-        SMStxt += "\n\nSleep timer command needs a time component. Try again.";
+        SMStxt += "\n\nSleep timer command needs a time component (non-zero). Try again.";
       }
     }
+    else if (SMSrec == "shutdown" && !shutDown) {
+      shutDown = true;
+      SMStxt += "\n\nShut-down command recieved.\nPutting device in shut-down mode.";
+    }
+    else if (SMSrec == "startup") {
+      SMStxt += "\n\nStart-up command recieved.\nWaking up device.";
+    }
     else {
-      SMStxt += "\n\nUnknown command.";
+      if (shutDown) {
+        SMStxt += "\n\nDevice in shut-down mode, \"startup\" is the only recognised command.";
+      }
+      else {
+        SMStxt += "\n\nUnknown command.";
+      }
     }
     SMStxt += "\n" + timeString;
   }
   else {
-    SMStxt += "\n\nIncorrect password recieved.\nCommand dismissed.\n" + timeString;
+    SMStxt += "\n\nIncorrect/no password recieved.\nCommand dismissed.\n" + timeString;
   }
 
   sendSMS();
@@ -304,23 +350,29 @@ void SMScommand() { // Execute the command recieved through SMS
     GPSstop();
   }
 
-  if (SMSrec == "idle" || SMSrec == "startup" || SMSrec == "restart") {
-    StartStop(StartStopMode);
+  if (SMSrec == "shutdown") {
+    StartStop(true);
+  }
+
+  if (SMSrec == "stopidle" || SMSrec == "startup") {
+    StartStop(false);
+  }
+  
+  if (SMSrec == "restart") {
+    digitalWrite(OUTPUT_PIN, LOW);
   }
 }
 
-void StartStop(bool mode) { // Either start the device up (by resetting), or shut everything down and wait
-  if (mode) {
-    digitalWrite(OUTPUT_PIN, LOW); // Reset the board to set everything up as normal again
+void StartStop(bool mode) { // Enable or disable idle mode
+  if (!mode) {
+    sleeping = true;
   }
-  else { // Put as much as possible into "idle mode". Putting the GSM module in low-power mode seems to cause issues with the watchdog biting though (even with a 60 second watchdog timer).
+  else { // Put as much as possible into low power mode.
     startStopMillis = millis();
     stopAll = true;
-    detachInterrupt(digitalPinToInterrupt(int2Pin));
     GPSstop();
     gpsMillis = 0;
     GPSsend = false;
-    myGNSS.powerOff((stopTime + 10) * 60000); // Add 10 minutes so that the GPS module doesn't wake up before idle mode is ended
   }
 }
 
@@ -493,6 +545,63 @@ byte DSTcheck() { // Calcualte if 1 or 2 hours should be added to the time, depe
   }
 }
 
+void wakeupTime() {
+  t = gsmAccess.getTime() + (DSTcheck() * 3600);
+      
+  /* Note that the RTCZero library doesn't roll over to a new date until 02:00 in the morning. https://github.com/arduino-libraries/RTCZero/issues/39
+     I might change to another library at a later point (like the Seeed Arduino RTC library: https://github.com/Seeed-Studio/Seeed_Arduino_RTC), but
+     since showing the "correct" date/time isn't essential for this project, the current implementation works just fine. */
+  
+  if (SMSwakeup != 99) { // A custom wake-up time is set through SMS-command
+    if (rtc.getHours() > 23 && SMSwakeup < 2) {
+      if (rtc.getHours() == 24 && SMSwakeup == 1) {
+        sleepHour = 25;
+      }
+      else {
+        sleepHour = (SMSwakeup + 48);
+      }
+    }
+    else if (rtc.getHours() >= SMSwakeup) {
+      sleepHour = (SMSwakeup + 24);
+    }
+    else if (rtc.getHours() < SMSwakeup) {
+      sleepHour = SMSwakeup;
+    }
+  }
+  else if (hour(t) >= 20 || hour(t) < 2) { // 8:00 the next day
+    sleepHour = (8 + 24);
+  }
+  else if (hour(t) < 8) { // 8:00
+    sleepHour = 8;
+  }
+  else if (hour(t) >= 8 && hour(t) < 20) { // 20:00
+    sleepHour = 20;
+  }
+
+  sleepT = tmConvert_t(2000 + rtc.getYear(), rtc.getMonth(), rtc.getDay(), 0, 00, 00) + (sleepHour * 3600); // Use todays date, at midnight, as a base for the calcualtions
+  sleepDur = sleepT - t;
+  
+  if (sleepDur <= 1800 && SMSwakeup == 99) { // If the sleep timer is close (within 30 minutes) let the device sleep until the next wakeup event (unless set through SMS command)
+    sleepDur += 12 * 3600;
+    sleepT += 12 * 3600;
+  }
+  SMSwakeup = 99; // Reset timer
+  
+  timeCreate(true);
+  if (idleMode) {
+    SMStxt += "Idle mode";
+  }
+  else {
+    SMStxt += "Sleeping";
+  }
+  SMStxt += " until " + String(hour(sleepT)) + ":00 hours";
+  if (rtc.getHours() < 24 && hour(sleepT) < rtc.getHours()) {
+    SMStxt += " tomorrow";
+  }
+  SMStxt += ".\n\nBike Tracker battery level: " + String(currBattery * (4.2 / 1023.0)) + "V\n" + timeString;
+  sendSMS();
+}
+
 /*************
  *   Setup   *
  *************/
@@ -543,7 +652,7 @@ void setup(void) {
     if (gsmAccess.begin(PINNUMBER) == GSM_READY && (gprs.attachGPRS(GPRS_APN, GPRS_LOGIN, GPRS_PASSWORD) == GPRS_READY)) {
       connected = true;
     } else {
-      delay(1000);
+      delay(500);
     }
   }
   gsmAccess.noLowPowerMode(); // Low-power mode is too slow fore regular use
@@ -605,90 +714,61 @@ void setup(void) {
  ************/
 
 void loop() {
-  Watchdog.enable(WatchDogTimer); // Watchdog resets after 30 seconds
+  Watchdog.enable(WatchDogTimer);
 
-  if (!stopAll) {
-    if (rtc.getHours() + DSTcheck() >= sleepTh && rtc.getMinutes() >= sleepTm && rtc.getSeconds() >= sleepTs && !mvCheck && !GPSwake && !sleeping) { // Deep sleep check
+  if (rtc.getHours() + DSTcheck() >= sleepTh && rtc.getMinutes() >= sleepTm && rtc.getSeconds() >= sleepTs && !mvCheck && !GPSwake && !sleeping && !stopAll) { // Idle/Deep sleep check
+    wakeupTime();
+    mvCheck = false;
+    if (!idleMode) {
+      gsmAccess.lowPowerMode(); // Putting the GSM modem in low power mode causes too much instability to use it in any other instance than deep sleep
+    }
+    myGNSS.powerOff(sleepDur * 1000 + 600000); // Shutdown the GPS module and add 10 minutes to make sure the GPS doesn't wake up before it is time to exit deep sleep
+    if (idleMode) {
+      StartStop(true);
+    }
+    else {
       sleeping = true;
-      mvCheck = false;
-      t = gsmAccess.getTime() + (DSTcheck() * 3600);
-      
-      /* Note that the RTCZero library doesn't roll over to a new date until 02:00 in the morning. https://github.com/arduino-libraries/RTCZero/issues/39
-         I might change to another library at a later point (like the Seeed Arduino RTC library: https://github.com/Seeed-Studio/Seeed_Arduino_RTC), but
-         since showing the "correct" date/time isn't essential for this project, the current implementation works just fine. */
-      
-      if (SMSwakeup != 99) { // A custom wake-up time is set through SMS-command
-        if (rtc.getHours() > 23 && SMSwakeup < 2) {
-          if (rtc.getHours() == 24 && SMSwakeup == 1) {
-            sleepHour = 25;
-          }
-          else {
-            sleepHour = (SMSwakeup + 48);
-          }
-        }
-        else if (rtc.getHours() >= SMSwakeup) {
-          sleepHour = (SMSwakeup + 24);
-        }
-        else if (rtc.getHours() < SMSwakeup) {
-          sleepHour = SMSwakeup;
-        }
-      }
-      else if (hour(t) >= 20 || hour(t) < 2) { // 8:00 the next day
-        sleepHour = (8 + 24);
-      }
-      else if (hour(t) < 8) { // 8:00
-        sleepHour = 8;
-      }
-      else if (hour(t) >= 8 && hour(t) < 20) { // 20:00
-        sleepHour = 20;
-      }
-
-      sleepT = tmConvert_t(2000 + rtc.getYear(), rtc.getMonth(), rtc.getDay(), 0, 00, 00) + (sleepHour * 3600); // Use todays date, at midnight, as a base for the calcualtions
-      sleepDur = sleepT - t;
-      
-      if (sleepDur <= 1800 && SMSwakeup == 99) { // If the sleep timer is close (within 30 minutes) let the device sleep until the next wakeup event (unless set through SMS command)
-        sleepDur += 12 * 3600;
-        sleepT += 12 * 3600;
-      }
-      SMSwakeup = 99; // Reset timer
-      
-      timeCreate(true);
-      SMStxt += "Going to sleep until " + String(hour(sleepT)) + ":00 hours";
-      if (rtc.getHours() < 24 && hour(sleepT) < rtc.getHours()) {
-        SMStxt += " tomorrow";
-      }
-      SMStxt += ".\n\nBike Tracker battery level: " + String(currBattery * (4.2 / 1023.0)) + "V\n" + timeString;
-      sendSMS();
-      myGNSS.powerOff(sleepDur * 1000 + 600000); // Add 10 minutes to make sure the GPS doesn't wake up before it is time to exit deep sleep
       delay(500);
       Watchdog.disable();
       delay(500);
       LowPower.deepSleep(sleepDur * 1000);
     }
-    
-    if (sleeping) {
-      rtcSet();
-      sleepTime(wakeInt);
-      currBattery = readBattery(false);
-      sleeping = false;
-      bWarning = false;
-      timeCreate(true);
-      if (in_activity) {
-        SMStxt += "Waking up.";
-      }
-      else {
-        SMStxt += "Scheduled wake-up.";
-      }
-      if (currBattery >= 850) {
-        SMStxt += "\n\nBike Tracker battery level: " + String(currBattery * (4.2 / 1023.0)) + "V\n" + timeString;
-        sendSMS();
-      }
-      else {
-        SMStxt += "\n" + timeString;
-        sendSMS();
-      }
-      GPSwakeUp();
+  }
+  else if (sleeping) {
+    gsmAccess.noLowPowerMode();
+    rtcSet(); // Set internal clock
+    sleepTime(wakeInt); // Set deep sleep timer
+    currBattery = readBattery(false);
+    sleeping = false;
+    bWarning = false;
+    startStopMillis = 0;
+    stopAll = false;
+    timeCreate(true);
+    if (in_activity) {
+      SMStxt += "Waking up, ";
     }
+    else {
+      SMStxt += "Scheduled wake-up, ";
+    }
+    if (idleMode) {
+      SMStxt += "from idle mode.";
+    }
+    else if (shutDown) {
+      shutDown = false;
+      SMStxt += "from shut-down mode.";
+    }
+    else {
+      SMStxt += "from deep sleep mode.";
+    }
+    if (currBattery >= 850) {
+      SMStxt += "\n\nBike Tracker battery level: " + String(currBattery * (4.2 / 1023.0)) + "V\n" + timeString;
+      sendSMS();
+    }
+    else {
+      SMStxt += "\n" + timeString;
+      sendSMS();
+    }
+    GPSwakeUp();
   }
 
   if (sms.available()) { // SMS reciever
@@ -704,22 +784,21 @@ void loop() {
     }
     else {
       SMSrec = "";
-      SMStxt = "";
     }
     sms.flush();
 
     SMScommand();
   }
 
-  if (startStopMillis != 0 && millis() - startStopMillis > (stopTime * 60000)) { // Exit idle mode
-    timeCreate(true);
-    SMStxt += "Idle mode ended. Resetting device.\n" + timeString;
-    sendSMS();
-    StartStop(true);
+  if (startStopMillis != 0 && millis() - startStopMillis > (sleepDur * 1000) && !shutDown || startStopMillis != 0 && in_activity && !shutDown) { // Exit idle mode
+    StartStop(false);
+  }
+  else if (startStopMillis != 0 && millis() - startStopMillis > 7200000 && shutDown) { // Automatically disable shut-down mode after 2 hours
+    StartStop(false);
   }
 
   if (!stopAll && !sleeping) {
-    if (in_activity == true) { // Accelerometer activity
+    if (in_activity) { // Accelerometer activity
       byte intSource = myAcc.readAndClearInterrupts();
       if (myAcc.checkInterrupt(intSource, ADXL345_ACTIVITY)) {
         if (initMoveMillis == 0) {
@@ -830,12 +909,12 @@ void loop() {
       sendSMS();
       bWarning = true;
     }
-    if (readBattery(false) == 1023) { // Charging completed
+    if (readBattery(false) > 1000) { // Charging completed
       if (!bCharged) {
         bCharged = true;
         chargedMillis = millis();
       }
-      if (millis() - chargedMillis > 120000 && chargedMillis != 0) { // Wait 2 minutes before sending charging completed
+      if (millis() - chargedMillis > 180000 && chargedMillis != 0) { // Wait 3 minutes before sending charging completed
         SMStxt += "Battery charging complete.\nBattery level: " + String(readBattery(true)) + "V";
         sendSMS();
         chargedMillis = 0;
