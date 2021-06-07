@@ -6,6 +6,9 @@ I was looking for a tracker that would let me know if the bike is moving and tha
 
 So, I needed a microcontroller that I could hook an accelerometer and a GPS to, and that reliably could send me the data gathered from those sensors. A simple SMS seemed like the best way to transmit, and it’s unlikely to stop working in the near future.
 
+## Future
+With v1.2 of the tracker the software is where I want it to be. The hardware needs some work though... The GPS shield will have to be soldered rather than using the I2C ports, since these have a tendency to disconnect if there's a bump in the road. And, the case (seen below) will have to go, since it can't really be said to hide the tracker very well. I'm planning to instead hide the tracker inside the seat post. Stay tuned.
+
 ## Hardware
 After some research, and trial and error, I ended up with the following hardware:
 * Arduino MKR GSM 1400 as the mainboard
